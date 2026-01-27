@@ -86,7 +86,6 @@ def load_classifier():
             classifier = pickle.load(f)
         with open(scaler_path, 'rb') as f:
             scaler = pickle.load(f)
-        st.info("✅ Using DINO+CLIP enhanced model")
         return classifier, scaler
     
     # Fallback to CLIP-only model
@@ -360,6 +359,8 @@ if feature_models and classifier_models[0]:
                                 </div>
                             </div>
                             """, unsafe_allow_html=True)
+
+
 
 
     # === TAB 2: BATCH EVALUATION ===
