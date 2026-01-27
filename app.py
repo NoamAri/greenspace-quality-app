@@ -485,8 +485,9 @@ if feature_models and classifier_models[0]:
                     auc = roc_auc_score(y_true, y_scores, multi_class='ovr', average='weighted', labels=[0, 1, 2])
                 else:
                     auc = 0.0 # Undefined for single class
+                    st.warning("⚠️ **Note**: ROC-AUC and Kappa are 0.0 because you only uploaded images for one class. To calculate these discrimination metrics, please upload images for at least two classes (e.g., Healthy AND Dried).")
             except Exception as e:
-                print(f"AUC Error: {e}")
+                st.error(f"AUC Calculation Error: {e}")
                 auc = 0.0
             
             # Display Metrics Grid
