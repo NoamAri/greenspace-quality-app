@@ -471,12 +471,22 @@ if feature_models and classifier_models[0]:
             st.success(f"Processed {total_files} images.")
             
             # Metrics
+            y_true = np.array(y_true)
+            y_pred = np.array(y_pred)
+            y_scores = np.vstack(y_scores)
+            
             acc = accuracy_score(y_true, y_pred)
             precision, recall, f1, _ = precision_recall_fscore_support(y_true, y_pred, average='weighted', zero_division=0)
             kappa = cohen_kappa_score(y_true, y_pred)
+            
+            # ROC-AUC requires at least 2 classes
             try:
-                auc = roc_auc_score(y_true, y_scores, multi_class='ovr', average='weighted')
-            except:
+                if len(np.unique(y_true)) > 1:
+                    auc = roc_auc_score(y_true, y_scores, multi_class='ovr', average='weighted', labels=[0, 1, 2])
+                else:
+                    auc = 0.0 # Undefined for single class
+            except Exception as e:
+                print(f"AUC Error: {e}")
                 auc = 0.0
             
             # Display Metrics Grid
