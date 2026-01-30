@@ -350,12 +350,16 @@ if feature_models and classifier_models[0]:
                     # Build feature vector (matches training format)
                     feature_parts = [scene_vec, veg_vec]
                     
-                    # Add DINO features if available
-                    if dino_scene_emb is not None:
-                        dino_scene_vec = dino_scene_emb.cpu().numpy().flatten()
-                        feature_parts.append(dino_scene_vec)
-                    
+                    # DINO features - always add if use_dino=True to match scaler dimensions (1795)
                     if scene_extractor.use_dino:
+                        # DINO Scene features
+                        if dino_scene_emb is not None:
+                            dino_scene_vec = dino_scene_emb.cpu().numpy().flatten()
+                        else:
+                            dino_scene_vec = np.zeros(scene_extractor.dino_extractor.embedding_dim, dtype=np.float32)
+                        feature_parts.append(dino_scene_vec)
+                        
+                        # DINO Vegetation features
                         if dino_veg_emb is not None:
                             dino_veg_vec = dino_veg_emb.cpu().numpy().flatten() if torch.is_tensor(dino_veg_emb) else dino_veg_emb.flatten()
                         else:
