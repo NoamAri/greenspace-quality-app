@@ -33,17 +33,179 @@ st.set_page_config(
 st.title("🌳 Greenspace Quality Analysis")
 st.markdown("""
 <style>
-    .reportview-container {
-        background: #f0f2f6
+    /* --- MODERN ORGANIC ZEN THEME --- */
+    :root {
+        /* Palette: Earth, Stone & Sage */
+        --bg-app: #111311;         /* Deep Organic Charcoal */
+        --bg-panel: #1A1D1A;       /* Dark Moss/Stone */
+        --bg-panel-hover: #222622;
+        
+        --text-heading: #D1FAE5;   /* Pastel Sage Green (Requested) */
+        --text-body: #E2E8F0;      /* Soft White/Gray */
+        --text-muted: #94A3B8;     /* Stone Gray */
+        
+        --accent-sage: #6EE7B7;    /* Muted Seafoam */
+        --accent-leaf: #10B981;    /* Natural Emerald */
+        
+        --border-subtle: #2C332C;  /* Dark organic border */
     }
-    .main {
-        background: #ffffff;
-        padding: 2rem;
-        border-radius: 10px;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    
+    /* Global RESET & Typography */
+    html, body, [class*="css"] {
+        font-family: 'Inter', 'Helvetica Neue', sans-serif;
+        color: var(--text-body);
+        -webkit-font-smoothing: antialiased;
     }
+    
+    /* 1. APP BACKGROUND - Matte & Grounded */
+    .stApp {
+        background-color: var(--bg-app);
+        /* Very subtle grain texture for organic feel (optional, simulated here with flat color for calm) */
+    }
+    
+    /* 2. CHASSIS / MAIN CONTAINER - "The Tablet" Look */
+    .main .block-container {
+        background-color: var(--bg-panel);
+        padding: 4rem;
+        border-radius: 12px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24); /* Subtle material shadow */
+        max-width: 1000px;
+        margin-top: 2rem;
+        border: 1px solid var(--border-subtle);
+    }
+    
+    /* 3. HEADINGS - Pastel Green Priority */
+    h1 {
+        color: var(--text-heading) !important;
+        font-weight: 500 !important; /* Lighter weight for elegance */
+        font-size: 2.8rem !important;
+        letter-spacing: -0.03em !important;
+        background: none !important;
+        -webkit-text-fill-color: initial !important;
+    }
+    
+    h2, h3 {
+        color: var(--text-heading) !important;
+        font-weight: 500 !important;
+        letter-spacing: -0.01em;
+    }
+    
+    /* 4. METRICS - Clean Data */
     div[data-testid="stMetricValue"] {
         font-size: 2rem;
+        color: #F0FDF4 !important; /* Almost white mint */
+        font-weight: 400; /* Sophisticated thin look */
+        background: none;
+        -webkit-text-fill-color: initial;
+    }
+    
+    div[data-testid="stMetricLabel"] {
+        color: var(--text-muted) !important;
+        font-size: 0.85rem !important;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+    }
+    
+    div[data-testid="metric-container"] {
+        background-color: #222622; /* Slightly elevated surface */
+        border: 1px solid var(--border-subtle);
+        border-radius: 8px;
+        padding: 1.5rem;
+        box-shadow: none;
+    }
+    
+    /* 5. BUTTONS - Matter & Functional */
+    .stButton > button {
+        background-color: #2C332C !important;
+        color: var(--text-heading) !important;
+        border: 1px solid var(--border-subtle) !important;
+        border-radius: 6px !important; /* Professional squared-off corners */
+        padding: 0.6rem 1.5rem !important;
+        font-weight: 500 !important;
+        transition: background-color 0.2s ease !important;
+        box-shadow: none !important;
+    }
+    
+    .stButton > button:hover {
+        background-color: #384038 !important;
+        border-color: var(--accent-sage) !important;
+        transform: none !important;
+        box-shadow: none !important;
+    }
+    
+    /* Primary Action - The "Go" Button */
+    .stButton > button[kind="primary"] {
+        background-color: var(--accent-leaf) !important;
+        color: #064E3B !important; /* Dark green text on bright button for contrast */
+        border: none !important;
+    }
+    
+    .stButton > button[kind="primary"]:hover {
+        background-color: var(--accent-sage) !important;
+    }
+    
+    /* 6. UPLOADER - Architectural Dotted Line */
+    div[data-testid="stFileUploader"] {
+        background-color: transparent;
+        border: 1px dashed var(--border-subtle) !important;
+        border-radius: 8px;
+        padding: 2rem;
+    }
+    
+    div[data-testid="stFileUploader"]:hover {
+        border-color: var(--text-heading) !important;
+        background-color: rgba(209, 250, 229, 0.02);
+    }
+    
+    /* 7. TABS - Understated */
+    .stTabs [data-baseweb="tab-list"] {
+        border-bottom: 1px solid var(--border-subtle);
+        gap: 2.5rem;
+    }
+    
+    .stTabs [data-baseweb="tab"] {
+        background: transparent;
+        border: none;
+        color: var(--text-muted);
+        font-weight: 500;
+        padding: 1rem 0;
+        font-family: inherit;
+    }
+    
+    .stTabs [aria-selected="true"] {
+        color: var(--text-heading) !important;
+        border-bottom: 2px solid var(--text-heading);
+    }
+    
+    /* 8. VISUALS */
+    img {
+        border-radius: 8px;
+        border: none;
+        opacity: 0.95; /* Slight blend with dark theme */
+    }
+    
+    .stPlotlyChart, .stVegaLiteChart, .stDataFrame {
+        background-color: #222622 !important;
+        border-radius: 8px;
+        border: 1px solid var(--border-subtle);
+    }
+    
+    /* Sidebar - Seamless */
+    section[data-testid="stSidebar"] {
+        background-color: var(--bg-app);
+        border-right: 1px solid var(--border-subtle);
+    }
+    
+    /* Divider */
+    hr {
+        border-color: var(--border-subtle);
+        margin: 3rem 0;
+        opacity: 0.5;
+    }
+    
+    /* Spinner */
+    .stSpinner > div {
+        border-top-color: var(--text-heading) !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -189,10 +351,16 @@ if feature_models and classifier_models[0]:
                     feature_parts = [scene_vec, veg_vec]
                     
                     # Add DINO features if available
-                    if dino_scene_emb is not None and dino_veg_emb is not None:
+                    if dino_scene_emb is not None:
                         dino_scene_vec = dino_scene_emb.cpu().numpy().flatten()
-                        dino_veg_vec = dino_veg_emb.cpu().numpy().flatten() if torch.is_tensor(dino_veg_emb) else dino_veg_emb.flatten()
-                        feature_parts.extend([dino_scene_vec, dino_veg_vec])
+                        feature_parts.append(dino_scene_vec)
+                    
+                    if scene_extractor.use_dino:
+                        if dino_veg_emb is not None:
+                            dino_veg_vec = dino_veg_emb.cpu().numpy().flatten() if torch.is_tensor(dino_veg_emb) else dino_veg_emb.flatten()
+                        else:
+                            dino_veg_vec = np.zeros(scene_extractor.dino_extractor.embedding_dim, dtype=np.float32)
+                        feature_parts.append(dino_veg_vec)
                     
                     feature_parts.append(color_vec)
                     features = np.concatenate(feature_parts).reshape(1, -1)
@@ -277,8 +445,28 @@ if feature_models and classifier_models[0]:
                     
                     col1, col2, col3 = st.columns(3)
                     
-                    color_map = {'Healthy': 'green', 'Dried': 'orange', 'Contaminated': 'red'}
-                    color = color_map[class_name]
+                    # Modern Organic Styles - Matte & Deep
+                    color_styles = {
+                        'Healthy': {
+                            'bg': '#14532D',      # Deep Forest Green
+                            'text': '#D1FAE5',
+                            'emoji': '🌿',
+                            'border': '#166534'
+                        },
+                        'Dried': {
+                            'bg': '#713F12',      # Deep Earth/Ochre
+                            'text': '#FEF3C7',
+                            'emoji': '🍂',
+                            'border': '#854D0E'
+                        },
+                        'Contaminated': {
+                            'bg': '#7F1D1D',      # Deep Red Clay
+                            'text': '#FEE2E2',
+                            'emoji': '⚠️',
+                            'border': '#991B1B'
+                        }
+                    }
+                    style = color_styles[class_name]
                     
                     with col1:
                         st.metric("Prediction", class_name, delta_color="off")
@@ -288,10 +476,13 @@ if feature_models and classifier_models[0]:
                         coverage_pct = color_stats.get('vegetation_coverage', 0)
                         st.metric("Vegetation Coverage", f"{coverage_pct:.1%}")
                     
-                    # Colored Banner
+                    # Colored Banner with organic matte finish
                     st.markdown(f"""
-                    <div style="background-color: {color}; padding: 20px; border-radius: 10px; color: white; text-align: center;">
-                        <h2 style="margin:0; color: white;">Quality: {class_name.upper()}</h2>
+                    <div style="background-color: {style['bg']}; padding: 24px; border-radius: 8px; text-align: center; 
+                                border: 1px solid {style['border']}; margin-top: 20px;">
+                        <h2 style="margin:0; color: {style['text']} !important; font-weight: 500; font-size: 1.8rem; letter-spacing: 0.02em;">
+                            {style['emoji']} {class_name.upper()} {style['emoji']}
+                        </h2>
                     </div>
                     """, unsafe_allow_html=True)
                     
@@ -443,8 +634,15 @@ if feature_models and classifier_models[0]:
                 # Add DINO if available
                 if dino_scene_emb is not None:
                     feature_parts.append(dino_scene_emb.cpu().numpy().flatten())
-                if dino_veg_emb is not None:
-                    feature_parts.append(dino_veg_emb.cpu().numpy().flatten() if torch.is_tensor(dino_veg_emb) else dino_veg_emb.flatten())
+                
+                # BUGFIX: Always append DINO veg features to maintain vector size (1795)
+                if scene_extractor.use_dino:
+                    if dino_veg_emb is not None:
+                        feature_parts.append(dino_veg_emb.cpu().numpy().flatten() if torch.is_tensor(dino_veg_emb) else dino_veg_emb.flatten())
+                    else:
+                        # Append zeros if no vegetation detected to match scaler expectation
+                        dims = scene_extractor.dino_extractor.embedding_dim
+                        feature_parts.append(np.zeros(dims, dtype=np.float32))
                 
                 color_vec = np.array([
                     color_stats.get('mean_green_ratio', 0),
