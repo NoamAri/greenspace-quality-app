@@ -18,7 +18,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 
 from config import Config
 from scene_features import SceneFeatureExtractor
-from vegetation_detector import VegetationDetector
+from vegetation_detector import VegetationDetector, mask_road_signs
 from vegetation_features import VegetationFeatureExtractor, ColorTextureAnalyzer
 from dataset import get_clip_preprocess
 
@@ -297,14 +297,17 @@ if feature_models and classifier_models[0]:
             if st.button("Analyze Quality", type="primary", key="btn_single"):
                 with st.spinner("Analyzing vegetation and scene features..."):
                     # 1. Feature Extraction
-                    image_tensor = preprocess(image).unsqueeze(0)
+                    # Clean image: remove road signs before scene analysis
+                    clean_image = mask_road_signs(image)
                     
-                    # CLIP Scene
+                    image_tensor = preprocess(clean_image).unsqueeze(0)
+                    
+                    # CLIP Scene (uses cleaned image)
                     scene_emb, prompt_scores = scene_extractor.extract_scene_features(image_tensor)
                     
-                    # DINO Scene (if enabled)
+                    # DINO Scene (uses cleaned image)
                     if dino_preprocess and scene_extractor.use_dino:
-                        dino_tensor = dino_preprocess(image).unsqueeze(0)
+                        dino_tensor = dino_preprocess(clean_image).unsqueeze(0)
                         dino_scene_emb = scene_extractor.extract_dino_scene_features(dino_tensor)
                     else:
                         dino_scene_emb = None
@@ -387,13 +390,13 @@ if feature_models and classifier_models[0]:
                     prompt_class_map = []
                     
                     # Robust index-based mapping (matches Config ranges)
-                    # 0-7 = Healthy (8 prompts)
-                    # 8-15 = Dried (8 prompts)
-                    # 16+ = Contaminated
+                    # 0-9 = Healthy (10 prompts)
+                    # 10-19 = Dried (10 prompts)
+                    # 20+ = Contaminated
                     for i, _ in enumerate(all_prompts):
-                        if i <= 7:
+                        if i <= 9:
                             prompt_class_map.append(0) # Healthy
-                        elif i <= 15:
+                        elif i <= 19:
                             prompt_class_map.append(1) # Dried
                         else:
                             prompt_class_map.append(2) # Contaminated
@@ -405,31 +408,50 @@ if feature_models and classifier_models[0]:
                     clip_class_scores /= clip_class_scores.sum() if clip_class_scores.sum() > 0 else 1
                     
                     # Check for consensus in top 3 matches
-                    # If the top 3 matching prompts all belong to the same class, trust it!
                     top_3_indices = np.argsort(scores)[::-1][:3]
                     top_3_classes = [prompt_class_map[i] for i in top_3_indices]
                     
-                    consensus_override = len(set(top_3_classes)) == 1
-                    consensus_class = top_3_classes[0] if consensus_override else -1
+                    # 3/3 = full consensus, 2/3 = majority agreement
+                    full_consensus = len(set(top_3_classes)) == 1
+                    consensus_class = top_3_classes[0] if full_consensus else -1
+                    
+                    # Check for 2/3 majority
+                    from collections import Counter
+                    class_counts = Counter(top_3_classes)
+                    majority_class, majority_count = class_counts.most_common(1)[0]
+                    has_majority = (majority_count >= 2) and not full_consensus
                     
                     # Ensemble: 60% RF + 40% CLIP
                     ensemble_probs = 0.6 * rf_probs + 0.4 * clip_class_scores
                     ensemble_prediction = np.argmax(ensemble_probs)
                     
-                    # Decision Hierarchy:
-                    # 1. CLIP Consensus (Strongest semantic signal)
-                    # 2. Ensemble (If RF is uncertain)
-                    # 3. Random Forest (Default)
+                    # Boost for #1 top prompt class (+5%)
+                    top_1_class = prompt_class_map[top_3_indices[0]]
+                    ensemble_probs[top_1_class] += 0.05
+                    ensemble_probs = ensemble_probs / ensemble_probs.sum()
+                    ensemble_prediction = np.argmax(ensemble_probs)
                     
-                    if consensus_override:
+                    # Decision Hierarchy:
+                    # 1. CLIP Full Consensus — 3/3 top prompts agree (strongest signal)
+                    # 2. CLIP Majority — 2/3 top prompts agree (+7% boost)
+                    # 3. Ensemble (if RF uncertain)
+                    # 4. Random Forest (default)
+                    
+                    if full_consensus:
                         prediction = consensus_class
-                        # Create synthetic high confidence distribution
                         probs = np.zeros(3)
                         probs[prediction] = 0.98
-                        # Split remaining small probability
                         others = [c for c in [0,1,2] if c != prediction]
                         for c in others: probs[c] = 0.01
-                        prediction_source = "CLIP Consensus (Top 3 Prompts)"
+                        prediction_source = "CLIP Consensus (3/3 Prompts)"
+                    elif has_majority:
+                        # Boost the majority class by 7% in ensemble
+                        boosted_probs = ensemble_probs.copy()
+                        boosted_probs[majority_class] += 0.07
+                        boosted_probs = boosted_probs / boosted_probs.sum()
+                        prediction = np.argmax(boosted_probs)
+                        probs = boosted_probs
+                        prediction_source = "CLIP Majority (2/3 Prompts)"
                     elif rf_probs[rf_prediction] < 0.65:
                         prediction = ensemble_prediction
                         probs = ensemble_probs
@@ -603,13 +625,16 @@ if feature_models and classifier_models[0]:
                 status_text.text(f"Processing ({i+1}/{total_files}): {file.name}")
                 image = Image.open(file).convert('RGB')
                 
-                # Features - CLIP
-                image_tensor = preprocess(image).unsqueeze(0)
-                scene_emb, _ = scene_extractor.extract_scene_features(image_tensor)
+                # Clean image: remove road signs before scene analysis
+                clean_image = mask_road_signs(image)
+                
+                # Features - CLIP (uses cleaned image)
+                image_tensor = preprocess(clean_image).unsqueeze(0)
+                scene_emb, prompt_scores = scene_extractor.extract_scene_features(image_tensor)
                 
                 # DINO features
                 if dino_preprocess and scene_extractor.use_dino:
-                    dino_tensor = dino_preprocess(image).unsqueeze(0)
+                    dino_tensor = dino_preprocess(clean_image).unsqueeze(0)
                     dino_scene_emb = scene_extractor.extract_dino_scene_features(dino_tensor)
                 else:
                     dino_scene_emb = None
@@ -657,12 +682,79 @@ if feature_models and classifier_models[0]:
                 features = np.concatenate(feature_parts).reshape(1, -1)
                 features_scaled = scaler.transform(features)
                 
-                # Predict
-                pred = classifier.predict(features_scaled)[0]
+                # === Prediction logic (identical to single image tab) ===
+                
+                # RF prediction
+                rf_prediction = classifier.predict(features_scaled)[0]
                 if hasattr(classifier, "predict_proba"):
-                    probs = classifier.predict_proba(features_scaled)[0]
+                    rf_probs = classifier.predict_proba(features_scaled)[0]
                 else:
-                    probs = np.eye(3)[pred]
+                    rf_probs = np.eye(3)[rf_prediction]
+                
+                # Handle case where classifier wasn't trained on all 3 classes
+                if len(rf_probs) < 3:
+                    full_probs = np.zeros(3)
+                    known_classes = classifier.classes_
+                    for ci, cls in enumerate(known_classes):
+                        full_probs[cls] = rf_probs[ci]
+                    rf_probs = full_probs
+                
+                # CLIP Prompt-based voting
+                all_prompts = Config().scene_prompts
+                prompt_class_map = []
+                for pi, _ in enumerate(all_prompts):
+                    if pi <= 9:
+                        prompt_class_map.append(0)
+                    elif pi <= 19:
+                        prompt_class_map.append(1)
+                    else:
+                        prompt_class_map.append(2)
+                
+                scores = prompt_scores[0].cpu().numpy()
+                clip_class_scores = np.zeros(3)
+                for si, score in enumerate(scores):
+                    clip_class_scores[prompt_class_map[si]] += score
+                clip_class_scores /= clip_class_scores.sum() if clip_class_scores.sum() > 0 else 1
+                
+                # Check for consensus in top 3 matches
+                top_3_indices = np.argsort(scores)[::-1][:3]
+                top_3_classes = [prompt_class_map[ti] for ti in top_3_indices]
+                
+                full_consensus = len(set(top_3_classes)) == 1
+                consensus_class = top_3_classes[0] if full_consensus else -1
+                
+                from collections import Counter
+                class_counts = Counter(top_3_classes)
+                majority_class, majority_count = class_counts.most_common(1)[0]
+                has_majority = (majority_count >= 2) and not full_consensus
+                
+                # Ensemble: 60% RF + 40% CLIP
+                ensemble_probs = 0.6 * rf_probs + 0.4 * clip_class_scores
+                
+                # Boost for #1 top prompt class (+5%)
+                top_1_class = prompt_class_map[top_3_indices[0]]
+                ensemble_probs[top_1_class] += 0.05
+                ensemble_probs = ensemble_probs / ensemble_probs.sum()
+                
+                # Decision Hierarchy
+                if full_consensus:
+                    pred = consensus_class
+                    probs = np.zeros(3)
+                    probs[pred] = 0.98
+                    others = [c for c in [0,1,2] if c != pred]
+                    for c in others: probs[c] = 0.01
+                elif has_majority:
+                    boosted_probs = ensemble_probs.copy()
+                    boosted_probs[majority_class] += 0.07
+                    boosted_probs = boosted_probs / boosted_probs.sum()
+                    pred = np.argmax(boosted_probs)
+                    probs = boosted_probs
+                elif rf_probs[rf_prediction] < 0.65:
+                    pred = np.argmax(ensemble_probs)
+                    probs = ensemble_probs
+                else:
+                    pred = rf_prediction
+                    probs = rf_probs
                 
                 y_pred.append(pred)
                 y_true.append(true_label)

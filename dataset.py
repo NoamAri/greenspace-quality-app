@@ -2,7 +2,7 @@
 Greenspace Quality Feature Pipeline - Dataset and DataLoaders
 """
 import os
-from typing import Dict, Tuple, Optional, List
+from typing import Tuple, Optional, List
 from pathlib import Path
 
 import torch
@@ -121,107 +121,4 @@ def get_clip_preprocess(image_size: int = 448) -> transforms.Compose:
     ])
 
 
-def get_train_transforms(image_size: int = 448) -> transforms.Compose:
-    """Get training transforms with augmentations + CLIP preprocessing."""
-    clip_mean = (0.48145466, 0.4578275, 0.40821073)
-    clip_std = (0.26862954, 0.26130258, 0.27577711)
-    
-    return transforms.Compose([
-        transforms.Resize(image_size, interpolation=transforms.InterpolationMode.BICUBIC),
-        transforms.CenterCrop(image_size),
-        # Augmentations (before normalization)
-        transforms.RandomHorizontalFlip(p=0.5),
-        transforms.RandomRotation(degrees=10),
-        transforms.ColorJitter(brightness=0.1, contrast=0.1, saturation=0.1),
-        transforms.ToTensor(),
-        transforms.Normalize(mean=clip_mean, std=clip_std),
-    ])
 
-
-def get_transforms(split: str, image_size: int = 448) -> transforms.Compose:
-    """
-    Get appropriate transforms for the given split.
-    
-    Args:
-        split: One of 'train', 'val', 'test'
-        image_size: Target image size
-    
-    Returns:
-        Composed transforms
-    """
-    if split == 'train':
-        return get_train_transforms(image_size)
-    else:
-        return get_clip_preprocess(image_size)
-
-
-def create_dataloaders(config) -> Dict[str, DataLoader]:
-    """
-    Create DataLoaders for all splits.
-    
-    Args:
-        config: Config object with data_root, batch_size, etc.
-    
-    Returns:
-        Dictionary with 'train', 'val', 'test' DataLoaders
-    """
-    dataloaders = {}
-    
-    for split in ['train', 'val', 'test']:
-        # Get appropriate transforms (use clip_image_size for CLIP compatibility)
-        transform = get_transforms(split, config.clip_image_size)
-        
-        # Create dataset
-        dataset = GreenspaceDataset(
-            data_root=config.data_root,
-            split=split,
-            transform=transform,
-            config=config
-        )
-        
-        # Create dataloader
-        dataloaders[split] = DataLoader(
-            dataset,
-            batch_size=config.batch_size,
-            shuffle=(split == 'train'),
-            num_workers=config.num_workers,
-            pin_memory=True if config.device == 'cuda' else False,
-            drop_last=False
-        )
-    
-    return dataloaders
-
-
-def create_raw_dataloader(config, split: str = 'train') -> DataLoader:
-    """
-    Create a DataLoader that returns raw (unnormalized) images.
-    Useful for GroundingDINO and SAM which need original images.
-    
-    Args:
-        config: Config object
-        split: Dataset split
-    
-    Returns:
-        DataLoader with raw image transforms
-    """
-    # Only resize and convert to tensor, no normalization
-    raw_transform = transforms.Compose([
-        transforms.Resize(config.image_size, interpolation=transforms.InterpolationMode.BICUBIC),
-        transforms.CenterCrop(config.image_size),
-        transforms.ToTensor(),
-    ])
-    
-    dataset = GreenspaceDataset(
-        data_root=config.data_root,
-        split=split,
-        transform=raw_transform,
-        config=config
-    )
-    
-    return DataLoader(
-        dataset,
-        batch_size=config.batch_size,
-        shuffle=False,
-        num_workers=config.num_workers,
-        pin_memory=True if config.device == 'cuda' else False
-    )

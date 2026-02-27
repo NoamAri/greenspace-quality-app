@@ -35,7 +35,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 
 from config import Config
 from scene_features import SceneFeatureExtractor
-from vegetation_detector import VegetationDetector
+from vegetation_detector import VegetationDetector, mask_road_signs
 from vegetation_features import VegetationFeatureExtractor, ColorTextureAnalyzer
 from dataset import get_clip_preprocess
 
@@ -118,14 +118,17 @@ def extract_features_from_dataset(
                 new_size = (int(image.width * ratio), int(image.height * ratio))
                 image = image.resize(new_size, Image.Resampling.LANCZOS)
             
-            # 1. CLIP Scene Features
-            image_tensor = preprocess(image).unsqueeze(0)
+            # 0. Clean image: remove road signs before scene analysis
+            clean_image = mask_road_signs(image)
+            
+            # 1. CLIP Scene Features (uses cleaned image)
+            image_tensor = preprocess(clean_image).unsqueeze(0)
             scene_emb, _ = scene_extractor.extract_scene_features(image_tensor)
             scene_vec = scene_emb.cpu().numpy().flatten()
             
-            # 2. DINO Scene Features (if enabled)
+            # 2. DINO Scene Features (uses cleaned image)
             if use_dino and dino_preprocess:
-                dino_tensor = dino_preprocess(image).unsqueeze(0)
+                dino_tensor = dino_preprocess(clean_image).unsqueeze(0)
                 dino_scene_emb = scene_extractor.extract_dino_scene_features(dino_tensor)
                 dino_scene_vec = dino_scene_emb.cpu().numpy().flatten()
             else:

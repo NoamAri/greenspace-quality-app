@@ -6,7 +6,7 @@ import torch
 import torch.nn.functional as F
 import numpy as np
 from typing import List, Tuple, Dict, Any, Optional
-from PIL import Image, ImageDraw, ImageDraw
+from PIL import Image
 import cv2
 from torchvision import transforms
 
@@ -105,33 +105,7 @@ class VegetationFeatureExtractor:
         
         return veg_embeddings, veg_embedding_mean, veg_embedding_max
     
-    def get_top_k_embeddings(
-        self,
-        boxes: List[Tuple[int, int, int, int]],
-        embeddings: List[torch.Tensor],
-        k: int = 3
-    ) -> List[torch.Tensor]:
-        """
-        Get top-k embeddings by box area.
-        
-        Args:
-            boxes: List of bounding boxes
-            embeddings: List of corresponding embeddings
-            k: Number of top embeddings to return
-        
-        Returns:
-            List of top-k embeddings sorted by box area (descending)
-        """
-        if len(boxes) == 0 or len(embeddings) == 0:
-            return []
-        
-        # Calculate areas
-        areas = [(x2 - x1) * (y2 - y1) for (x1, y1, x2, y2) in boxes]
-        
-        # Sort by area descending
-        sorted_indices = np.argsort(areas)[::-1][:k]
-        
-        return [embeddings[i] for i in sorted_indices]
+
     
     def extract_dino_crop_embeddings(
         self,
@@ -227,9 +201,7 @@ class ColorTextureAnalyzer:
         green_ratios = G / (R + B + 1e-6)
         features['green_ratio'] = float(np.clip(np.mean(green_ratios), 0, 2))
         
-        # Brown/yellow index: (R + G - 2*B) / (R + G + B + epsilon) - Disabled per user request
-        # brown_indices = (R + G - 2 * B) / (R + G + B + 1e-6)
-        features['brown_index'] = 0.0 # float(np.clip(np.mean(brown_indices), -1, 1))
+
         
         # Intensity variance (texture roughness)
         intensity = 0.299 * R + 0.587 * G + 0.114 * B
@@ -284,7 +256,6 @@ class ColorTextureAnalyzer:
             'mean_G': 0.0,
             'mean_B': 0.0,
             'green_ratio': 0.0,
-            'brown_index': 0.0,
             'intensity_variance': 0.0,
             'edge_density': 0.0,
         }
@@ -311,7 +282,7 @@ class ColorTextureAnalyzer:
             return {
                 'mean_G': 0.0, 'std_G': 0.0,
                 'mean_green_ratio': 0.0, 'std_green_ratio': 0.0,
-                'mean_brown_index': 0.0, 'std_brown_index': 0.0,
+
                 'mean_edge_density': 0.0, 'std_edge_density': 0.0,
                 'mean_intensity_variance': 0.0, 'std_intensity_variance': 0.0,
                 'num_vegetation_regions': 0,
@@ -350,12 +321,12 @@ class ColorTextureAnalyzer:
         aggregated = {}
         
         # Number of regions
-        # Number of regions
+
         aggregated['num_vegetation_regions'] = len(region_features)
         aggregated['vegetation_coverage'] = coverage_pct
         
         # Compute mean and std for each feature
-        feature_keys = ['mean_G', 'green_ratio', 'brown_index', 'edge_density', 'intensity_variance']
+        feature_keys = ['mean_G', 'green_ratio', 'edge_density', 'intensity_variance']
         
         for key in feature_keys:
             values = [f[key] for f in region_features]

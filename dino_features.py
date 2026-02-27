@@ -96,53 +96,7 @@ class DinoFeatureExtractor:
         
         return scene_embeddings
     
-    @torch.no_grad()
-    def extract_crop_embeddings(
-        self,
-        image: Image.Image,
-        boxes: List[Tuple[int, int, int, int]],
-    ) -> Tuple[List[torch.Tensor], torch.Tensor]:
-        """
-        Extract DINOv2 embeddings for vegetation crops.
-        
-        Args:
-            image: PIL Image (RGB)
-            boxes: List of (x_min, y_min, x_max, y_max) bounding boxes
-        
-        Returns:
-            crop_embeddings: List of embeddings per crop (each is D-dim)
-            mean_embedding: Mean-pooled embedding across all crops (D-dim)
-        """
-        if not boxes:
-            # No vegetation detected - return zero embedding
-            zero_emb = torch.zeros(self.embedding_dim, device=self.device)
-            return [], zero_emb
-        
-        crop_embeddings = []
-        
-        for box in boxes:
-            x_min, y_min, x_max, y_max = box
-            
-            # Crop and preprocess
-            crop = image.crop((x_min, y_min, x_max, y_max))
-            crop_tensor = self.preprocess(crop).unsqueeze(0)  # (1, C, H, W)
-            crop_tensor = crop_tensor.to(self.device)
-            
-            # Extract features
-            features = self.model(crop_tensor)
-            features = F.normalize(features, dim=-1)  # (1, D)
-            
-            crop_embeddings.append(features.squeeze(0))  # (D,)
-        
-        # Mean pooling across crops
-        if crop_embeddings:
-            mean_embedding = torch.stack(crop_embeddings).mean(dim=0)  # (D,)
-            mean_embedding = F.normalize(mean_embedding, dim=-1)
-        else:
-            mean_embedding = torch.zeros(self.embedding_dim, device=self.device)
-        
-        return crop_embeddings, mean_embedding
-    
+
     @torch.no_grad()
     def extract_batch_crops(
         self,

@@ -33,13 +33,13 @@ class Config:
     dino_model_name: str = "dinov2_vits14"  # 384-dim, lighter than base/large
     dino_image_size: int = 518  # DINOv2 optimal size (divisible by 14)
     
-    # Scene prompts - hybrid (detailed + short) for optimal classification
+    # Scene prompts — 10 per class (30 total)
     # Indices: 
-    # 0-7   = HEALTHY (5 detailed + 3 short)
-    # 8-15  = DRIED (5 detailed + 3 short)
-    # 16-25 = CONTAMINATED (5 detailed + 5 short)
+    # 0-9   = HEALTHY  (5 detailed + 5 short)
+    # 10-19 = DRIED    (5 detailed + 5 short)
+    # 20-29 = CONTAMINATED (5 detailed + 5 short)
     scene_prompts: List[str] = field(default_factory=lambda: [
-        # --- HEALTHY (Indices 0-7) ---
+        # --- HEALTHY (Indices 0-9) ---
         # Detailed
         "a pristine park with lush vibrant green grass and healthy trees",
         "a well-maintained urban garden with fresh green vegetation and no trash",
@@ -50,8 +50,10 @@ class Config:
         "vibrant green grass",
         "healthy lush vegetation",
         "clean fresh park",
+        "well watered green turf",
+        "dense green canopy",
         
-        # --- DRIED (Indices 8-15) ---
+        # --- DRIED (Indices 10-19) ---
         # Detailed
         "a dried-out park with dead brown grass and yellowed vegetation",
         "an image of a drought-stricken greenspace with withered plants",
@@ -62,8 +64,10 @@ class Config:
         "dead brown grass",
         "withered yellow vegetation",
         "dried out plants",
+        "scorched yellow field",
+        "cracked dry soil with dead grass",
         
-        # --- CONTAMINATED (Indices 16-25) ---
+        # --- CONTAMINATED (Indices 20-29) ---
         # Detailed
         "a photo of a polluted urban greenspace with visible trash and litter on the ground",
         "a dirty park with scattered plastic bottles, bags and other waste among the plants",
@@ -78,18 +82,12 @@ class Config:
         "rubbish on ground",
     ])
     
-    # GroundingDINO settings
-    grounding_dino_config: str = "GroundingDINO_SwinT_OGC"
+    # Vegetation detection settings
     vegetation_queries: List[str] = field(default_factory=lambda: [
         "vegetation", "grass", "trees", "bushes", "plants"
     ])
     box_threshold: float = 0.35
     nms_iou_threshold: float = 0.5
-    
-    # SAM settings
-    use_sam: bool = True
-    sam_model_type: str = "vit_h"
-    sam_checkpoint: Optional[str] = None  # Auto-download if None
     
     # Class mapping
     class_names: List[str] = field(default_factory=lambda: [

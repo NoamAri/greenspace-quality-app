@@ -122,18 +122,7 @@ class SceneFeatureExtractor:
         embeddings = self.model.encode_image(images)
         return F.normalize(embeddings, dim=-1)
     
-    @torch.no_grad()
-    def encode_text(self, texts: List[str]) -> torch.Tensor:
-        """
-        Encode text to CLIP embeddings.
-        
-        Args:
-            texts: List of text strings
-        
-        Returns:
-            embeddings: L2-normalized text embeddings (N, D)
-        """
-        return self._encode_prompts(texts)
+
     
     @torch.no_grad()
     def extract_dino_scene_features(
@@ -159,46 +148,4 @@ class SceneFeatureExtractor:
         """Return a zero embedding for images with no vegetation (CLIP)."""
         return torch.zeros(self.embedding_dim, device=self.device)
     
-    def get_zero_dino_embedding(self) -> Optional[torch.Tensor]:
-        """Return a zero DINO embedding for images with no vegetation."""
-        if not self.use_dino or self.dino_extractor is None:
-            return None
-        return self.dino_extractor.get_zero_embedding()
 
-
-class CaptionEncoder:
-    """Optional: Encode image captions using CLIP's text encoder."""
-    
-    def __init__(self, scene_extractor: SceneFeatureExtractor):
-        """
-        Args:
-            scene_extractor: SceneFeatureExtractor to reuse CLIP model
-        """
-        self.scene_extractor = scene_extractor
-    
-    @torch.no_grad()
-    def encode_caption(self, caption: str) -> torch.Tensor:
-        """
-        Encode a single caption to CLIP embedding.
-        
-        Args:
-            caption: Text caption string
-        
-        Returns:
-            embedding: L2-normalized caption embedding (D,)
-        """
-        embeddings = self.scene_extractor.encode_text([caption])
-        return embeddings[0]
-    
-    @torch.no_grad()
-    def encode_captions(self, captions: List[str]) -> torch.Tensor:
-        """
-        Encode multiple captions to CLIP embeddings.
-        
-        Args:
-            captions: List of caption strings
-        
-        Returns:
-            embeddings: L2-normalized caption embeddings (N, D)
-        """
-        return self.scene_extractor.encode_text(captions)
