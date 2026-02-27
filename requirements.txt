@@ -1,36 +1,26 @@
-# Greenspace Quality Feature Pipeline - Dependencies
-# Updated for Python 3.13 compatibility (January 2026)
+# VLM Sense - Greenspace Quality Classifier
+# Dependencies (February 2026)
 
-# Core Deep Learning Framework
+# Core Deep Learning
 torch>=2.5.0
 torchvision>=0.20.0
 numpy>=2.0.0
 Pillow>=10.4.0
 
-# CLIP (Vision-Language Models)
+# CLIP (Vision-Language Model)
 open_clip_torch>=2.26.0
-
-# GroundingDINO (Object Detection)
-groundingdino-py>=0.4.0
-
-# SAM (Segment Anything Model)
-segment-anything>=1.0
 
 # Image Processing
 opencv-python-headless>=4.10.0
 
-# Utilities
-tqdm>=4.66.0
-
-# Transformers (for GroundingDINO and other models)
-transformers>=4.45.0
-tokenizers>=0.20.0
-
 # Data Science & Machine Learning
+scikit-learn>=1.5.0
 pandas>=2.2.0
 matplotlib>=3.9.0
 seaborn>=0.13.0
-scikit-learn>=1.5.0
+
+# Utilities
+tqdm>=4.66.0
 
 # Web Dashboard
 streamlit>=1.39.0

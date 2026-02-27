@@ -1,42 +1,78 @@
-# 🌳 VLM Sense - Greenspace Quality Classifier
+# 🌳 VLM Sense — Greenspace Quality Classifier
 
-## Deployment-Ready Application
-
-This folder contains **ONLY** the essential files needed to run the Greenspace Quality Classifier app.
+A Computer Vision pipeline that classifies park and greenspace images into **Healthy**, **Dried**, or **Contaminated** categories using multi-model feature fusion (CLIP + DINOv2) and an ensemble prediction strategy.
 
 ---
 
-## 📁 What's Included
+## 📁 Project Structure
 
-### Core Application
-- **`app.py`** - Main Streamlit web interface
-- **`config.py`** - Configuration settings
+```
+vlm_sense/
+├── app.py                   # Streamlit web interface (single image + batch evaluation)
+├── config.py                # Central configuration (prompts, model names, paths)
+├── train.py                 # Training pipeline (feature extraction + Random Forest)
+├── dataset.py               # Dataset loading and CLIP preprocessing
+├── scene_features.py        # CLIP + DINOv2 scene-level feature extraction
+├── dino_features.py         # DINOv2 model wrapper and embedding extraction
+├── vegetation_detector.py   # HSV color-based vegetation detection + road sign masking
+├── vegetation_features.py   # Vegetation crop embeddings + color/texture analysis
+├── models/                  # Trained model artifacts
+│   ├── best_classifier_dino.pkl   # Random Forest (CLIP+DINO features, 1795-dim)
+│   ├── scaler_dino.pkl            # StandardScaler for feature normalization
+│   ├── best_classifier.pkl        # Fallback RF (CLIP-only, 1027-dim)
+│   ├── scaler.pkl                 # Fallback scaler
+│   ├── confusion_matrix.png       # Evaluation confusion matrix
+│   ├── feature_importance.png     # Top feature importances
+│   └── metrics.json               # Accuracy, F1, etc.
+├── requirements.txt         # Python dependencies
+├── packages.txt             # System dependencies (Streamlit Cloud)
+├── Data/                    # Training/validation/test images (not included in deployment)
+└── System_Architecture_Documentation.html
+```
 
-### AI Components
-- **`vegetation_detector.py`** - Vegetation detection (HSV color-based)
-- **`vegetation_features.py`** - Feature extraction from vegetation regions
-- **`scene_features.py`** - CLIP-based scene understanding
-- **`dataset.py`** - Image preprocessing utilities
+---
 
-### Trained Models
-- **`models/`** folder containing:
-  - `best_classifier.pkl` - Trained Random Forest classifier
-  - `scaler.pkl` - Feature normalization
-  - `confusion_matrix.png` - Model evaluation
+## 🧠 Architecture
 
-### Deployment Files
-- **`requirements.txt`** - Python dependencies
-- **`packages.txt`** - System dependencies (for Streamlit Cloud)
-- **`.gitignore`** - Git ignore rules
+### Feature Extraction (1,795-dimensional vector)
 
-### Documentation
-- **`System_Architecture_Documentation.html`** - Full system documentation
+| Component | Dimensions | Description |
+|---|---|---|
+| CLIP Scene Embedding | 512 | Global scene understanding via ViT-B/32 |
+| CLIP Vegetation Embedding | 512 | Mean-pooled crops from detected vegetation regions |
+| DINOv2 Scene Embedding | 384 | Fine-grained visual texture via ViT-S/14 |
+| DINOv2 Vegetation Embedding | 384 | Crop-level texture features |
+| Color/Texture Features | 3 | Green ratio, edge density, vegetation coverage |
+
+### Prediction Pipeline (Ensemble Strategy)
+
+1. **Road Sign Masking** — HSV-based detection of red/blue/white rectangular objects, inpainted before scene analysis so signs aren't misread as contamination
+2. **Random Forest** — Trained on 1,795-dim feature vectors
+3. **CLIP Prompt Voting** — 30 text prompts (10 per class) scored against the image
+4. **Ensemble** — 60% RF + 40% CLIP, with boosts:
+   - Top-1 prompt class: +5%
+   - 2/3 top-3 majority: +7%
+   - 3/3 top-3 consensus: full override (98% confidence)
+
+### Decision Hierarchy
+
+| Priority | Condition | Action |
+|---|---|---|
+| 1 | 3/3 top prompts agree | Override → 98% confidence |
+| 2 | 2/3 top prompts agree | +7% boost to majority class |
+| 3 | RF confidence < 65% | Use ensemble (RF+CLIP) |
+| 4 | RF confident ≥ 65% | Trust RF alone |
 
 ---
 
 ## 🚀 How to Run Locally
 
 ```bash
+# Create virtual environment
+python -m venv venv
+venv\Scripts\activate        # Windows
+# source venv/bin/activate   # macOS/Linux
+
 # Install dependencies
 pip install -r requirements.txt
 
@@ -44,87 +80,51 @@ pip install -r requirements.txt
 streamlit run app.py
 ```
 
+The app opens at `http://localhost:8501` with two tabs:
+
+- **Single Image Analysis** — Upload one image, see detailed results with confidence breakdown
+- **Batch Evaluation** — Upload labeled images per class, get accuracy, F1, confusion matrix, ROC curves
+
 ---
 
 ## ☁️ Deploy to Streamlit Cloud
 
 1. Push this folder to GitHub
 2. Go to [share.streamlit.io](https://share.streamlit.io)
-3. Connect your repository
-4. Select `app.py` as the main file
-5. Deploy!
+3. Connect your repository, select `app.py`
+4. Deploy — the app auto-downloads CLIP and DINOv2 on first run
 
 ---
 
-## 📊 What the App Does
+## 🔧 Key Design Decisions
 
-Analyzes park/greenspace images and classifies them as:
-- **Healthy** (vibrant green vegetation)
-- **Dried** (yellow/brown vegetation)
-- **Contaminated** (polluted/degraded areas)
-
-### Features:
-- ✅ Lightweight color-based vegetation detection
-- ✅ CLIP embeddings for scene understanding
-- ✅ Random Forest classifier
-- ✅ Optimized for cloud deployment (1GB RAM limit)
+- **Multi-model fusion** — CLIP captures semantic meaning ("healthy park"), DINOv2 captures visual texture (leaf patterns)
+- **HSV vegetation detection** — Lightweight fallback instead of GroundingDINO for cloud deployment (< 1GB RAM)
+- **Road sign masking** — Prevents misclassification of urban signage as contamination
+- **Ensemble voting** — Combines learned features (RF) with zero-shot reasoning (CLIP prompts) for robustness
 
 ---
 
-## 🧠 System Requirements
+## ⚙️ System Requirements
 
-**Minimum:**
-- Python 3.8+
-- 1GB RAM (cloud)
-- 4GB RAM (local for better performance)
-
-**Cloud Optimizations Applied:**
-- Auto-resize images to max 1024px
-- Disabled heavy GroundingDINO model
-- Uses lightweight HSV color detection
-- Single-threaded CPU operation
+| Environment | RAM | Notes |
+|---|---|---|
+| Cloud (Streamlit) | 1 GB | Auto-resize, CPU-only, single-threaded |
+| Local | 4 GB+ | Faster processing, optional GPU support |
+| Python | 3.8+ | Tested on 3.10–3.13 |
 
 ---
 
-## 📖 For More Details
+## 🔧 Troubleshooting
 
-Open `System_Architecture_Documentation.html` in your browser for:
-- Complete file structure explanation
-- Data flow diagrams
-- Model descriptions
-- Feature engineering details
-
----
-
-## ⚠️ What's NOT Included
-
-The following files were excluded (used only for development/training):
-- Training scripts (`train_classifier.py`, `extract_features.py`)
-- Visualization tools (`visualize_*.py`)
-- Test scripts (`test_*.py`)
-- Training data (`Data/` folder)
-- Extracted features (`features/` folder)
-- GroundingDINO weights (not used in lightweight mode)
-
-**You can safely delete everything else outside this folder!**
+| Problem | Solution |
+|---|---|
+| App won't start | Check Python ≥ 3.8, reinstall: `pip install -r requirements.txt --force-reinstall` |
+| Out of memory (cloud) | Images are auto-resized to 1024px; reduce `max_size` in `app.py` if needed |
+| "Models not found" | Ensure `models/` folder contains `.pkl` files |
+| Wrong predictions | Verify the trained model matches the feature dimension (1795 for DINO-enhanced) |
 
 ---
 
-## 🔧 Quick Troubleshooting
-
-### App won't start
-- Check Python version: `python --version` (needs 3.8+)
-- Reinstall dependencies: `pip install -r requirements.txt --force-reinstall`
-
-### Out of memory on cloud
-- Images are auto-resized to 1024px
-- If still crashing, reduce `max_size` in `app.py` line 95
-
-### "Models not found" error
-- Ensure `models/` folder exists with `.pkl` files
-- Check file paths in `config.py`
-
----
-
-**Version:** January 2026  
+**Version:** February 2026  
 **Status:** Production-Ready ✅
